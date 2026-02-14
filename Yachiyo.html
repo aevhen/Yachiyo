@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#10b981">
+    <title>Yachiyo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #333;
+        }
+
+        .container {
+            flex: 1;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            padding: 20px 0;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .camera-section {
+            text-align: center;
+        }
+
+        #preview {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            border-radius: 15px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #preview .placeholder {
+            color: #9ca3af;
+            font-size: 48px;
+        }
+
+        .btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .results {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .status.healthy {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status.diseased {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status.uncertain {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .confidence {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 0.5s ease;
+        }
+
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .warning-title {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 5px;
+        }
+
+        .warning-text {
+            font-size: 14px;
+            color: #78350f;
+        }
+
+        .new-scan-btn {
+            background: #667eea;
+            margin-top: 15px;
+        }
+
+        .new-scan-btn:hover {
+            background: #5568d3;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .probabilities {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .prob-item {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .prob-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .prob-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌿 Yachiyo</h1>
+            <p>Take a photo to check your plant's health</p>
+        </div>
+
+        <div class="card camera-section">
+            <div id="preview">
+                <div class="placeholder">📷</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" capture="environment">
+            <button class="btn" onclick="openCamera()">Take Photo</button>
+        </div>
+
+        <div class="card loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your plant...</p>
+        </div>
+
+        <div class="card results" id="results">
+            <div class="result-header">
+                <div class="status" id="statusBadge">Healthy</div>
+                <div class="confidence">Confidence: <span id="confidenceText">95%</span></div>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceFill" style="width: 95%"></div>
+                </div>
+            </div>
+
+            <div class="probabilities">
+                <div class="prob-item">
+                    <div class="prob-label">Healthy</div>
+                    <div class="prob-value" id="healthyProb">95%</div>
+                </div>
+                <div class="prob-item">
+                    <div class="prob-label">Diseased</div>
+                    <div class="prob-value" id="diseasedProb">5%</div>
+                </div>
+            </div>
+
+            <div class="warning" id="uncertainWarning" style="display: none;">
+                <div class="warning-title">⚠️ Uncertain Result</div>
+                <div class="warning-text">The model is not confident about this prediction. Consider consulting an expert or taking another photo in better lighting.</div>
+            </div>
+
+            <button class="btn new-scan-btn" onclick="resetScan()">Scan Another Plant</button>
+        </div>
+    </div>
+
+    <div class="footer">
+        Context-Aware Plant Disease Detection Using Image Analysis and Geospatial Data
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script>
+        let currentImage = null;
+        let session = null;
+
+        // ONNX Model Configuration
+        const MODEL_PATH = 'best_model.onnx';  // Update this path when you have your trained model
+        const IMG_SIZE = 224;
+        const UNCERTAINTY_THRESHOLD = 0.7;  // Below this confidence = uncertain
+
+        // Initialize ONNX Runtime session
+        async function loadModel() {
+            try {
+                session = await ort.InferenceSession.create(MODEL_PATH);
+                console.log('Model loaded successfully');
+            } catch (error) {
+                console.error('Error loading model:', error);
+                // For now, we'll use mock predictions
+                console.log('Using mock predictions for demo');
+            }
+        }
+
+        // Load model when page loads
+        // loadModel();  // Uncomment when you have the model file
+
+        function openCamera() {
+            document.getElementById('fileInput').click();
+        }
+
+        document.getElementById('fileInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                currentImage = file;
+                displayImage(file);
+                await analyzeImage(file);
+            }
+        });
+
+        function displayImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('preview').innerHTML = `<img src="${e.target.result}" alt="Plant photo">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function analyzeImage(file) {
+            // Show loading
+            document.querySelector('.camera-section').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            // Simulate processing time
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            let prediction;
+            
+            if (session) {
+                // Real model prediction
+                prediction = await runModelInference(file);
+            } else {
+                // Mock prediction for demo
+                prediction = generateMockPrediction();
+            }
+
+            displayResults(prediction);
+        }
+
+        async function runModelInference(file) {
+            // Preprocess image
+            const imageTensor = await preprocessImage(file);
+            
+            // Run inference
+            const feeds = { input: imageTensor };
+            const results = await session.run(feeds);
+            
+            // Get probabilities
+            const probabilities = results.probabilities.data;
+            
+            return {
+                healthyProb: probabilities[0],
+                diseasedProb: probabilities[1]
+            };
+        }
+
+        async function preprocessImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Create canvas and resize image
+                        const canvas = document.createElement('canvas');
+                        canvas.width = IMG_SIZE;
+                        canvas.height = IMG_SIZE;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, IMG_SIZE, IMG_SIZE);
+                        
+                        // Get image data
+                        const imageData = ctx.getImageData(0, 0, IMG_SIZE, IMG_SIZE);
+                        const { data } = imageData;
+                        
+                        // Normalize to [-1, 1] (ImageNet normalization)
+                        const float32Data = new Float32Array(3 * IMG_SIZE * IMG_SIZE);
+                        const mean = [0.485, 0.456, 0.406];
+                        const std = [0.229, 0.224, 0.225];
+                        
+                        for (let i = 0; i < IMG_SIZE * IMG_SIZE; i++) {
+                            float32Data[i] = ((data[i * 4] / 255) - mean[0]) / std[0];  // R
+                            float32Data[IMG_SIZE * IMG_SIZE + i] = ((data[i * 4 + 1] / 255) - mean[1]) / std[1];  // G
+                            float32Data[2 * IMG_SIZE * IMG_SIZE + i] = ((data[i * 4 + 2] / 255) - mean[2]) / std[2];  // B
+                        }
+                        
+                        const tensor = new ort.Tensor('float32', float32Data, [1, 3, IMG_SIZE, IMG_SIZE]);
+                        resolve(tensor);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function generateMockPrediction() {
+            // Generate random but realistic predictions for demo
+            const random = Math.random();
+            
+            if (random > 0.7) {
+                // Healthy plant
+                return {
+                    healthyProb: 0.85 + Math.random() * 0.14,
+                    diseasedProb: 0.01 + Math.random() * 0.14
+                };
+            } else if (random > 0.4) {
+                // Diseased plant
+                return {
+                    healthyProb: 0.05 + Math.random() * 0.15,
+                    diseasedProb: 0.80 + Math.random() * 0.19
+                };
+            } else {
+                // Uncertain
+                return {
+                    healthyProb: 0.45 + Math.random() * 0.15,
+                    diseasedProb: 0.40 + Math.random() * 0.15
+                };
+            }
+        }
+
+        function displayResults(prediction) {
+            const { healthyProb, diseasedProb } = prediction;
+            
+            // Determine status
+            const maxProb = Math.max(healthyProb, diseasedProb);
+            const isHealthy = healthyProb > diseasedProb;
+            const isUncertain = maxProb < UNCERTAINTY_THRESHOLD;
+            
+            // Update badge
+            const statusBadge = document.getElementById('statusBadge');
+            if (isUncertain) {
+                statusBadge.textContent = 'Uncertain';
+                statusBadge.className = 'status uncertain';
+            } else if (isHealthy) {
+                statusBadge.textContent = '✓ Healthy';
+                statusBadge.className = 'status healthy';
+            } else {
+                statusBadge.textContent = '✗ Diseased';
+                statusBadge.className = 'status diseased';
+            }
+            
+            // Update confidence
+            const confidence = Math.round(maxProb * 100);
+            document.getElementById('confidenceText').textContent = `${confidence}%`;
+            document.getElementById('confidenceFill').style.width = `${confidence}%`;
+            
+            // Update probabilities
+            document.getElementById('healthyProb').textContent = `${Math.round(healthyProb * 100)}%`;
+            document.getElementById('diseasedProb').textContent = `${Math.round(diseasedProb * 100)}%`;
+            
+            // Show/hide uncertainty warning
+            document.getElementById('uncertainWarning').style.display = isUncertain ? 'block' : 'none';
+            
+            // Show results
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function resetScan() {
+            document.querySelector('.camera-section').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('preview').innerHTML = '<div class="placeholder">📷</div>';
+            currentImage = null;
+        }
+    </script>
+</body>
+</html>
