@@ -329,8 +329,7 @@
                 console.log('Model loaded successfully');
             } catch (error) {
                 console.error('Error loading model:', error);
-                // For now, we'll use mock predictions
-                console.log('Using mock predictions for demo');
+                alert('Failed to load AI model. Please refresh the page. If the problem persists, the model file may be missing or corrupted.');
             }
         }
 
