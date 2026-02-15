@@ -1,0 +1,17 @@
+{
+  "iteration": 2,
+  "model_name": "efficientnet_b0",
+  "img_size": 224,
+  "class_names": [
+    "Healthy",
+    "Diseased"
+  ],
+  "temperature": 1.0,
+  "metrics": {
+    "accuracy": 0.9983885819521179,
+    "macro_f1": 0.9980225236429968,
+    "ece": 0.02661450651798458,
+    "nll": 0.030781235545873642
+  },
+  "training_duration_minutes": 285.0452329333333
+}
