@@ -364,20 +364,15 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('results').style.display = 'none';
 
-            // Simulate processing time
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            let prediction;
-            
-            if (session) {
-                // Real model prediction
-                prediction = await runModelInference(file);
-            } else {
-                // Mock prediction for demo
-                prediction = generateMockPrediction();
+            try {
+                // Run real model inference
+                const prediction = await runModelInference(file);
+                displayResults(prediction);
+            } catch (error) {
+                console.error('Error during inference:', error);
+                alert('Error analyzing image. Please make sure the model is loaded and try again.');
+                resetScan();
             }
-
-            displayResults(prediction);
         }
 
         async function runModelInference(file) {
@@ -432,31 +427,6 @@
                 };
                 reader.readAsDataURL(file);
             });
-        }
-
-        function generateMockPrediction() {
-            // Generate random but realistic predictions for demo
-            const random = Math.random();
-            
-            if (random > 0.7) {
-                // Healthy plant
-                return {
-                    healthyProb: 0.85 + Math.random() * 0.14,
-                    diseasedProb: 0.01 + Math.random() * 0.14
-                };
-            } else if (random > 0.4) {
-                // Diseased plant
-                return {
-                    healthyProb: 0.05 + Math.random() * 0.15,
-                    diseasedProb: 0.80 + Math.random() * 0.19
-                };
-            } else {
-                // Uncertain
-                return {
-                    healthyProb: 0.45 + Math.random() * 0.15,
-                    diseasedProb: 0.40 + Math.random() * 0.15
-                };
-            }
         }
 
         function displayResults(prediction) {
