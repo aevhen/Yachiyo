@@ -10,48 +10,40 @@
 
 <style>
 
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-}
-
 body{
-font-family:system-ui;
+font-family:Arial;
 background:linear-gradient(135deg,#667eea,#764ba2);
-min-height:100vh;
+color:white;
 display:flex;
 justify-content:center;
 align-items:center;
+height:100vh;
+margin:0;
 }
 
 .container{
-width:95%;
-max-width:500px;
+width:420px;
 }
 
 .card{
 background:white;
+color:black;
 padding:25px;
-border-radius:20px;
-box-shadow:0 15px 40px rgba(0,0,0,.2);
-margin-bottom:20px;
+border-radius:15px;
+box-shadow:0 10px 30px rgba(0,0,0,.3);
+margin-bottom:15px;
 text-align:center;
 }
 
-h1{
-margin-bottom:10px;
-}
-
 #preview{
-height:300px;
+height:260px;
 background:#eee;
-border-radius:15px;
+border-radius:10px;
 display:flex;
 align-items:center;
 justify-content:center;
 overflow:hidden;
-margin-bottom:20px;
+margin-bottom:15px;
 }
 
 #preview img{
@@ -61,18 +53,14 @@ object-fit:cover;
 }
 
 button{
-padding:15px 20px;
+padding:12px;
 border:none;
-border-radius:10px;
+border-radius:8px;
 background:#10b981;
 color:white;
 font-size:16px;
 cursor:pointer;
 width:100%;
-}
-
-button:hover{
-background:#059669;
 }
 
 .loading{
@@ -83,28 +71,10 @@ display:none;
 display:none;
 }
 
-.status{
-font-size:22px;
-font-weight:bold;
-margin-bottom:10px;
-}
-
-.healthy{
-color:#059669;
-}
-
-.diseased{
-color:#dc2626;
-}
-
-.uncertain{
-color:#f59e0b;
-}
-
 .bar{
 height:10px;
 background:#eee;
-border-radius:5px;
+border-radius:6px;
 overflow:hidden;
 margin:10px 0;
 }
@@ -116,7 +86,6 @@ width:0%;
 }
 
 </style>
-
 </head>
 
 <body>
@@ -124,33 +93,27 @@ width:0%;
 <div class="container">
 
 <div class="card">
-
-<h1>🌿 Yachiyo</h1>
+<h2>🌿 Yachiyo</h2>
 <p>AI Plant Disease Detection</p>
-
 </div>
 
 <div class="card camera-section">
 
-<div id="preview">
-📷
-</div>
+<div id="preview">📷</div>
 
-<input type="file" id="fileInput" accept="image/*" capture="environment" hidden>
+<input type="file" id="fileInput" accept="image/*" hidden>
 
 <button onclick="openCamera()">Take Photo</button>
 
 </div>
 
 <div class="card loading" id="loading">
-
-<p>Analyzing plant...</p>
-
+Analyzing plant...
 </div>
 
 <div class="card results" id="results">
 
-<div id="status" class="status"></div>
+<h3 id="status"></h3>
 
 <div>Confidence: <span id="confidenceText"></span></div>
 
@@ -158,7 +121,7 @@ width:0%;
 <div class="fill" id="confidenceFill"></div>
 </div>
 
-<div style="display:flex;gap:10px;margin-top:10px">
+<div style="display:flex;gap:10px">
 
 <div style="flex:1">
 Healthy<br>
@@ -174,7 +137,7 @@ Diseased<br>
 
 <br>
 
-<button onclick="resetScan()">Scan Another Plant</button>
+<button onclick="resetScan()">Scan Another</button>
 
 </div>
 
@@ -184,11 +147,8 @@ Diseased<br>
 
 let session=null
 
-const MODEL_PATH="./best_model.onnx"
-
 const IMG_SIZE=224
-
-const UNCERTAINTY_THRESHOLD=.7
+const UNCERTAINTY_THRESHOLD=0.7
 
 ort.env.wasm.simd=true
 ort.env.wasm.numThreads=navigator.hardwareConcurrency||1
@@ -198,11 +158,25 @@ async function loadModel(){
 
 try{
 
-console.log("Loading ONNX model")
+console.log("Loading ONNX model with external weights")
+
+const modelResponse=await fetch("./best_model.onnx")
+const modelBuffer=await modelResponse.arrayBuffer()
+
+const dataResponse=await fetch("./best_model.onnx.data")
+const dataBuffer=await dataResponse.arrayBuffer()
 
 session=await ort.InferenceSession.create(
-MODEL_PATH,
-{executionProviders:['webgpu','wasm']}
+modelBuffer,
+{
+executionProviders:["webgpu","wasm"],
+externalData:[
+{
+path:"best_model.onnx.data",
+data:dataBuffer
+}
+]
+}
 )
 
 console.log("Model loaded")
@@ -210,7 +184,7 @@ console.log("Model loaded")
 }catch(e){
 
 console.error(e)
-alert("Model failed to load")
+alert("Model failed to load: "+e.message)
 
 }
 
@@ -222,10 +196,8 @@ window.addEventListener("load",loadModel)
 function openCamera(){
 
 if(!session){
-
 alert("Model still loading")
 return
-
 }
 
 document.getElementById("fileInput").click()
@@ -250,10 +222,8 @@ function displayImage(file){
 const reader=new FileReader()
 
 reader.onload=e=>{
-
 document.getElementById("preview").innerHTML=
 `<img src="${e.target.result}">`
-
 }
 
 reader.readAsDataURL(file)
@@ -264,7 +234,6 @@ reader.readAsDataURL(file)
 async function analyzeImage(file){
 
 document.querySelector(".camera-section").style.display="none"
-
 document.getElementById("loading").style.display="block"
 
 try{
@@ -276,8 +245,7 @@ displayResults(prediction)
 }catch(e){
 
 console.error(e)
-
-alert("Inference error")
+alert("Inference failed")
 
 resetScan()
 
@@ -290,17 +258,12 @@ async function runInference(file){
 
 const tensor=await preprocessImage(file)
 
-const inputName=session.inputNames[0]
-
 const feeds={}
-
-feeds[inputName]=tensor
+feeds[session.inputNames[0]]=tensor
 
 const results=await session.run(feeds)
 
-const outputName=session.outputNames[0]
-
-const output=results[outputName].data
+const output=results[session.outputNames[0]].data
 
 return{
 healthyProb:output[0],
@@ -385,23 +348,11 @@ const uncertain=maxProb<UNCERTAINTY_THRESHOLD
 let label=""
 
 if(uncertain){
-
 label="Uncertain"
-
-document.getElementById("status").className="status uncertain"
-
 }else if(isHealthy){
-
 label="Healthy"
-
-document.getElementById("status").className="status healthy"
-
 }else{
-
 label="Diseased"
-
-document.getElementById("status").className="status diseased"
-
 }
 
 document.getElementById("status").innerText=label
@@ -413,11 +364,9 @@ document.getElementById("confidenceText").innerText=confidence+"%"
 document.getElementById("confidenceFill").style.width=confidence+"%"
 
 document.getElementById("healthyProb").innerText=Math.round(healthy*100)+"%"
-
 document.getElementById("diseasedProb").innerText=Math.round(diseased*100)+"%"
 
 document.getElementById("loading").style.display="none"
-
 document.getElementById("results").style.display="block"
 
 }
