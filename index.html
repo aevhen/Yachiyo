@@ -1,388 +1,322 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yachiyo Plant Scanner</title>
-
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-
-<style>
-
-body{
-font-family:Arial;
-background:linear-gradient(135deg,#667eea,#764ba2);
-color:white;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-margin:0;
-}
-
-.container{
-width:420px;
-}
-
-.card{
-background:white;
-color:black;
-padding:25px;
-border-radius:15px;
-box-shadow:0 10px 30px rgba(0,0,0,.3);
-margin-bottom:15px;
-text-align:center;
-}
-
-#preview{
-height:260px;
-background:#eee;
-border-radius:10px;
-display:flex;
-align-items:center;
-justify-content:center;
-overflow:hidden;
-margin-bottom:15px;
-}
-
-#preview img{
-width:100%;
-height:100%;
-object-fit:cover;
-}
-
-button{
-padding:12px;
-border:none;
-border-radius:8px;
-background:#10b981;
-color:white;
-font-size:16px;
-cursor:pointer;
-width:100%;
-}
-
-.loading{
-display:none;
-}
-
-.results{
-display:none;
-}
-
-.bar{
-height:10px;
-background:#eee;
-border-radius:6px;
-overflow:hidden;
-margin:10px 0;
-}
-
-.fill{
-height:100%;
-background:#10b981;
-width:0%;
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#10b981">
+    <title>Yachiyo - Plant Health Scanner</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #333;
+        }
+        
+        .container { flex: 1; max-width: 500px; margin: 0 auto; padding: 20px; width: 100%; }
+        .header { text-align: center; color: white; padding: 20px 0; }
+        .header h1 { font-size: 28px; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .camera-section { text-align: center; }
+        
+        #preview {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            border-radius: 15px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            overflow: hidden;
+        }
+        
+        #preview img { width: 100%; height: 100%; object-fit: cover; }
+        #preview .placeholder { color: #9ca3af; font-size: 48px; }
+        
+        .btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover { background: #059669; transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+        
+        #fileInput { display: none; }
+        
+        .results { display: none; animation: fadeIn 0.5s; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-header { text-align: center; margin-bottom: 20px; }
+        
+        .status {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .status.healthy { background: #d1fae5; color: #065f46; }
+        .status.diseased { background: #fee2e2; color: #991b1b; }
+        .status.uncertain { background: #fef3c7; color: #92400e; }
+        
+        .confidence { font-size: 14px; color: #6b7280; margin-top: 5px; }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 0.5s ease;
+        }
+        
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .warning-title { font-weight: 600; color: #92400e; margin-bottom: 5px; }
+        .warning-text { font-size: 14px; color: #78350f; }
+        
+        .new-scan-btn { background: #667eea; margin-top: 15px; }
+        .new-scan-btn:hover { background: #5568d3; }
+        
+        .loading { text-align: center; padding: 30px; display: none; }
+        
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .footer { text-align: center; padding: 20px; color: white; font-size: 12px; opacity: 0.8; }
+        
+        .probabilities {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .prob-item {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .prob-label { font-size: 12px; color: #6b7280; margin-bottom: 5px; }
+        .prob-value { font-size: 20px; font-weight: 700; color: #1f2937; }
+    </style>
 </head>
-
 <body>
-
-<div class="container">
-
-<div class="card">
-<h2>🌿 Yachiyo</h2>
-<p>AI Plant Disease Detection</p>
-</div>
-
-<div class="card camera-section">
-
-<div id="preview">📷</div>
-
-<input type="file" id="fileInput" accept="image/*" hidden>
-
-<button onclick="openCamera()">Take Photo</button>
-
-</div>
-
-<div class="card loading" id="loading">
-Analyzing plant...
-</div>
-
-<div class="card results" id="results">
-
-<h3 id="status"></h3>
-
-<div>Confidence: <span id="confidenceText"></span></div>
-
-<div class="bar">
-<div class="fill" id="confidenceFill"></div>
-</div>
-
-<div style="display:flex;gap:10px">
-
-<div style="flex:1">
-Healthy<br>
-<span id="healthyProb"></span>
-</div>
-
-<div style="flex:1">
-Diseased<br>
-<span id="diseasedProb"></span>
-</div>
-
-</div>
-
-<br>
-
-<button onclick="resetScan()">Scan Another</button>
-
-</div>
-
-</div>
-
-<script>
-
-let session=null
-
-const IMG_SIZE=224
-const UNCERTAINTY_THRESHOLD=0.7
-
-ort.env.wasm.simd=true
-ort.env.wasm.numThreads=navigator.hardwareConcurrency||1
-
-
-async function loadModel(){
-
-try{
-
-console.log("Loading ONNX model with external weights")
-
-const modelResponse=await fetch("./best_model.onnx")
-const modelBuffer=await modelResponse.arrayBuffer()
-
-const dataResponse=await fetch("./best_model.onnx.data")
-const dataBuffer=await dataResponse.arrayBuffer()
-
-session=await ort.InferenceSession.create(
-modelBuffer,
-{
-executionProviders:["webgpu","wasm"],
-externalData:[
-{
-path:"best_model.onnx.data",
-data:dataBuffer
-}
-]
-}
-)
-
-console.log("Model loaded")
-
-}catch(e){
-
-console.error(e)
-alert("Model failed to load: "+e.message)
-
-}
-
-}
-
-window.addEventListener("load",loadModel)
-
-
-function openCamera(){
-
-if(!session){
-alert("Model still loading")
-return
-}
-
-document.getElementById("fileInput").click()
-
-}
-
-document.getElementById("fileInput").addEventListener("change",async e=>{
-
-const file=e.target.files[0]
-
-if(!file)return
-
-displayImage(file)
-
-await analyzeImage(file)
-
-})
-
-
-function displayImage(file){
-
-const reader=new FileReader()
-
-reader.onload=e=>{
-document.getElementById("preview").innerHTML=
-`<img src="${e.target.result}">`
-}
-
-reader.readAsDataURL(file)
-
-}
-
-
-async function analyzeImage(file){
-
-document.querySelector(".camera-section").style.display="none"
-document.getElementById("loading").style.display="block"
-
-try{
-
-const prediction=await runInference(file)
-
-displayResults(prediction)
-
-}catch(e){
-
-console.error(e)
-alert("Inference failed")
-
-resetScan()
-
-}
-
-}
-
-
-async function runInference(file){
-
-const tensor=await preprocessImage(file)
-
-const feeds={}
-feeds[session.inputNames[0]]=tensor
-
-const results=await session.run(feeds)
-
-const output=results[session.outputNames[0]].data
-
-return{
-healthyProb:output[0],
-diseasedProb:output[1]
-}
-
-}
-
-
-async function preprocessImage(file){
-
-return new Promise(resolve=>{
-
-const reader=new FileReader()
-
-reader.onload=e=>{
-
-const img=new Image()
-
-img.onload=()=>{
-
-const canvas=document.createElement("canvas")
-
-canvas.width=IMG_SIZE
-canvas.height=IMG_SIZE
-
-const ctx=canvas.getContext("2d")
-
-ctx.drawImage(img,0,0,IMG_SIZE,IMG_SIZE)
-
-const imageData=ctx.getImageData(0,0,IMG_SIZE,IMG_SIZE)
-
-const data=imageData.data
-
-const float32Data=new Float32Array(3*IMG_SIZE*IMG_SIZE)
-
-const mean=[0.485,0.456,0.406]
-const std=[0.229,0.224,0.225]
-
-for(let i=0;i<IMG_SIZE*IMG_SIZE;i++){
-
-float32Data[i]=((data[i*4]/255)-mean[0])/std[0]
-
-float32Data[i+IMG_SIZE*IMG_SIZE]=((data[i*4+1]/255)-mean[1])/std[1]
-
-float32Data[i+2*IMG_SIZE*IMG_SIZE]=((data[i*4+2]/255)-mean[2])/std[2]
-
-}
-
-resolve(
-new ort.Tensor(
-"float32",
-float32Data,
-[1,3,IMG_SIZE,IMG_SIZE]
-)
-)
-
-}
-
-img.src=e.target.result
-
-}
-
-reader.readAsDataURL(file)
-
-})
-
-}
-
-
-function displayResults(prediction){
-
-const healthy=prediction.healthyProb
-const diseased=prediction.diseasedProb
-
-const maxProb=Math.max(healthy,diseased)
-
-const isHealthy=healthy>diseased
-
-const uncertain=maxProb<UNCERTAINTY_THRESHOLD
-
-let label=""
-
-if(uncertain){
-label="Uncertain"
-}else if(isHealthy){
-label="Healthy"
-}else{
-label="Diseased"
-}
-
-document.getElementById("status").innerText=label
-
-const confidence=Math.round(maxProb*100)
-
-document.getElementById("confidenceText").innerText=confidence+"%"
-
-document.getElementById("confidenceFill").style.width=confidence+"%"
-
-document.getElementById("healthyProb").innerText=Math.round(healthy*100)+"%"
-document.getElementById("diseasedProb").innerText=Math.round(diseased*100)+"%"
-
-document.getElementById("loading").style.display="none"
-document.getElementById("results").style.display="block"
-
-}
-
-
-function resetScan(){
-
-document.querySelector(".camera-section").style.display="block"
-
-document.getElementById("results").style.display="none"
-
-document.getElementById("preview").innerHTML="📷"
-
-}
-
-</script>
-
+    <div class="container">
+        <div class="header">
+            <h1>🌿 Yachiyo</h1>
+            <p>AI-powered plant disease detection</p>
+        </div>
+
+        <div class="card camera-section">
+            <div id="preview">
+                <div class="placeholder">📷</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" capture="environment">
+            <button class="btn" onclick="openCamera()">Take Photo</button>
+        </div>
+
+        <div class="card loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your plant...</p>
+        </div>
+
+        <div class="card results" id="results">
+            <div class="result-header">
+                <div class="status" id="statusBadge">Healthy</div>
+                <div class="confidence">Confidence: <span id="confidenceText">95%</span></div>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceFill" style="width: 95%"></div>
+                </div>
+            </div>
+
+            <div class="probabilities">
+                <div class="prob-item">
+                    <div class="prob-label">Healthy</div>
+                    <div class="prob-value" id="healthyProb">95%</div>
+                </div>
+                <div class="prob-item">
+                    <div class="prob-label">Diseased</div>
+                    <div class="prob-value" id="diseasedProb">5%</div>
+                </div>
+            </div>
+
+            <div class="warning" id="uncertainWarning" style="display: none;">
+                <div class="warning-title">⚠️ Uncertain Result</div>
+                <div class="warning-text">The model is not confident about this prediction. Consider consulting an expert or taking another photo in better lighting.</div>
+            </div>
+
+            <button class="btn new-scan-btn" onclick="resetScan()">Scan Another Plant</button>
+        </div>
+    </div>
+
+    <div class="footer">
+        Context-Aware Plant Disease Detection Using Image Analysis and Geospatial Data
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@gradio/client"></script>
+    
+    <script>
+        const HUGGING_FACE_SPACE = "aevhencn/yachiyo";
+        let client = null;
+        
+        async function initClient() {
+            try {
+                client = await window.gradio.client(HUGGING_FACE_SPACE);
+                console.log("✓ Connected to Hugging Face Space");
+            } catch (error) {
+                console.error("Failed to connect to Hugging Face:", error);
+            }
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', initClient);
+        
+        function openCamera() {
+            document.getElementById('fileInput').click();
+        }
+
+        document.getElementById('fileInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                displayImage(file);
+                await analyzeImage(file);
+            }
+        });
+
+        function displayImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('preview').innerHTML = `<img src="${e.target.result}" alt="Plant photo">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function analyzeImage(file) {
+            document.querySelector('.camera-section').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                if (!client) {
+                    await initClient();
+                }
+                
+                // Call Gradio API
+                const result = await client.predict("/predict", {
+                    image: file
+                });
+                
+                // Extract predictions from Gradio response
+                const predictions = result.data[0];
+                
+                // Gradio returns {label: probability}
+                const healthyProb = predictions.Healthy || predictions.healthy || 0;
+                const diseasedProb = predictions.Diseased || predictions.diseased || 0;
+                
+                const prediction = {
+                    healthyProb: healthyProb,
+                    diseasedProb: diseasedProb
+                };
+                
+                displayResults(prediction);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error analyzing image. Please try again. Make sure the Hugging Face Space is running.');
+                resetScan();
+            }
+        }
+
+        function displayResults(prediction) {
+            const { healthyProb, diseasedProb } = prediction;
+            const maxProb = Math.max(healthyProb, diseasedProb);
+            const isHealthy = healthyProb > diseasedProb;
+            const isUncertain = maxProb < 0.7;
+            
+            const statusBadge = document.getElementById('statusBadge');
+            if (isUncertain) {
+                statusBadge.textContent = 'Uncertain';
+                statusBadge.className = 'status uncertain';
+            } else if (isHealthy) {
+                statusBadge.textContent = '✓ Healthy';
+                statusBadge.className = 'status healthy';
+            } else {
+                statusBadge.textContent = '✗ Diseased';
+                statusBadge.className = 'status diseased';
+            }
+            
+            const confidence = Math.round(maxProb * 100);
+            document.getElementById('confidenceText').textContent = `${confidence}%`;
+            document.getElementById('confidenceFill').style.width = `${confidence}%`;
+            document.getElementById('healthyProb').textContent = `${Math.round(healthyProb * 100)}%`;
+            document.getElementById('diseasedProb').textContent = `${Math.round(diseasedProb * 100)}%`;
+            document.getElementById('uncertainWarning').style.display = isUncertain ? 'block' : 'none';
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function resetScan() {
+            document.querySelector('.camera-section').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('preview').innerHTML = '<div class="placeholder">📷</div>';
+        }
+    </script>
 </body>
 </html>
