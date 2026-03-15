@@ -209,23 +209,8 @@
         Context-Aware Plant Disease Detection Using Image Analysis and Geospatial Data
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@gradio/client"></script>
-    
     <script>
-        const HUGGING_FACE_SPACE = "aevhencn/yachiyo";
-        let client = null;
-        
-        async function initClient() {
-            try {
-                client = await window.gradio.client(HUGGING_FACE_SPACE);
-                console.log("✓ Connected to Hugging Face Space");
-            } catch (error) {
-                console.error("Failed to connect to Hugging Face:", error);
-            }
-        }
-        
-        // Initialize on page load
-        window.addEventListener('load', initClient);
+        const API_URL = "https://aevhencn-yachiyo.hf.space/api/predict";
         
         function openCamera() {
             document.getElementById('fileInput').click();
@@ -253,21 +238,43 @@
             document.getElementById('results').style.display = 'none';
 
             try {
-                if (!client) {
-                    await initClient();
-                }
+                // Convert file to base64
+                const base64 = await fileToBase64(file);
                 
-                // Call Gradio API
-                const result = await client.predict("/predict", {
-                    image: file
+                // Call Gradio API with form data
+                const formData = new FormData();
+                formData.append('data', JSON.stringify([base64]));
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
                 });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const result = await response.json();
                 
-                // Extract predictions from Gradio response
+                // Parse Gradio response format
+                // result.data[0] contains the label predictions
                 const predictions = result.data[0];
                 
-                // Gradio returns {label: probability}
-                const healthyProb = predictions.Healthy || predictions.healthy || 0;
-                const diseasedProb = predictions.Diseased || predictions.diseased || 0;
+                // Find healthy and diseased probabilities
+                let healthyProb = 0;
+                let diseasedProb = 0;
+                
+                if (predictions.label) {
+                    // Format: [{label: "Healthy", probability: 0.95}, ...]
+                    for (const pred of predictions.label) {
+                        if (pred.label === "Healthy") healthyProb = pred.probability;
+                        if (pred.label === "Diseased") diseasedProb = pred.probability;
+                    }
+                } else {
+                    // Format: {"Healthy": 0.95, "Diseased": 0.05}
+                    healthyProb = predictions.Healthy || predictions.healthy || 0;
+                    diseasedProb = predictions.Diseased || predictions.diseased || 0;
+                }
                 
                 const prediction = {
                     healthyProb: healthyProb,
@@ -278,9 +285,18 @@
                 
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error analyzing image. Please try again. Make sure the Hugging Face Space is running.');
+                alert('Error analyzing image: ' + error.message + '\n\nMake sure your Hugging Face Space is running.');
                 resetScan();
             }
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         }
 
         function displayResults(prediction) {
