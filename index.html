@@ -210,7 +210,7 @@
     </div>
 
     <script>
-        const API_URL = "https://aevhencn-yachiyo.hf.space/call/predict";
+        const SPACE_URL = "https://aevhencn-yachiyo.hf.space";
         
         function openCamera() {
             document.getElementById('fileInput').click();
@@ -238,61 +238,92 @@
             document.getElementById('results').style.display = 'none';
 
             try {
-                // Convert file to base64
-                const base64 = await fileToBase64(file);
+                // Step 1: Upload the file to Gradio
+                const formData = new FormData();
+                formData.append('files', file);
                 
-                // Gradio API format: data array with image object
-                const payload = {
+                const uploadResponse = await fetch(`${SPACE_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error(`Upload failed: ${uploadResponse.status}`);
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                const filePath = uploadResult[0]; // Gradio returns array of file paths
+                
+                console.log('Uploaded file:', filePath);
+                
+                // Step 2: Call the predict endpoint with the uploaded file path
+                const predictPayload = {
                     data: [{
-                        path: null,
-                        url: base64,  // base64 data URL
-                        size: null,
+                        path: filePath,
+                        url: `${SPACE_URL}/file=${filePath}`,
                         orig_name: file.name,
+                        size: file.size,
                         mime_type: file.type,
                         is_stream: false,
                         meta: {}
                     }]
                 };
                 
-                const response = await fetch(API_URL, {
+                const predictResponse = await fetch(`${SPACE_URL}/call/predict`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(predictPayload)
                 });
 
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
+                if (!predictResponse.ok) {
+                    throw new Error(`Prediction failed: ${predictResponse.status}`);
                 }
 
-                const result = await response.json();
-                console.log('API Response:', result);
+                const predictResult = await predictResponse.json();
+                const eventId = predictResult.event_id;
                 
-                // Gradio returns: {data: [{label: "...", confidences: [{label: "...", confidence: 0.xx}, ...]}]}
-                const predictions = result.data[0];
+                console.log('Event ID:', eventId);
                 
-                // Extract probabilities from confidences array
-                let healthyProb = 0;
-                let diseasedProb = 0;
+                // Step 3: Get the result using Server-Sent Events
+                const eventSource = new EventSource(`${SPACE_URL}/call/predict/${eventId}`);
                 
-                if (predictions.confidences) {
-                    for (const conf of predictions.confidences) {
-                        if (conf.label === "Healthy") healthyProb = conf.confidence;
-                        if (conf.label === "Diseased") diseasedProb = conf.confidence;
+                eventSource.addEventListener('complete', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('Complete data:', data);
+                    
+                    // Extract predictions: data[0] = {label: "...", confidences: [...]}
+                    const predictions = data[0];
+                    
+                    let healthyProb = 0;
+                    let diseasedProb = 0;
+                    
+                    if (predictions.confidences) {
+                        for (const conf of predictions.confidences) {
+                            if (conf.label === "Healthy") healthyProb = conf.confidence;
+                            if (conf.label === "Diseased") diseasedProb = conf.confidence;
+                        }
                     }
-                }
+                    
+                    const prediction = {
+                        healthyProb: healthyProb,
+                        diseasedProb: diseasedProb
+                    };
+                    
+                    displayResults(prediction);
+                    eventSource.close();
+                });
                 
-                const prediction = {
-                    healthyProb: healthyProb,
-                    diseasedProb: diseasedProb
-                };
-                
-                displayResults(prediction);
+                eventSource.addEventListener('error', (event) => {
+                    console.error('SSE error:', event);
+                    eventSource.close();
+                    throw new Error('Failed to get prediction result');
+                });
                 
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error analyzing image: ' + error.message + '\n\nMake sure your Hugging Face Space is running at:\nhttps://huggingface.co/spaces/aevhencn/yachiyo');
+                alert('Error analyzing image: ' + error.message + '\n\nMake sure your Hugging Face Space is running.');
                 resetScan();
             }
         }
