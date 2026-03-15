@@ -241,13 +241,25 @@
                 // Convert file to base64
                 const base64 = await fileToBase64(file);
                 
-                // Call Gradio API with form data
-                const formData = new FormData();
-                formData.append('data', JSON.stringify([base64]));
+                // Gradio API format: data array with image object
+                const payload = {
+                    data: [{
+                        path: null,
+                        url: base64,  // base64 data URL
+                        size: null,
+                        orig_name: file.name,
+                        mime_type: file.type,
+                        is_stream: false,
+                        meta: {}
+                    }]
+                };
                 
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {
@@ -255,25 +267,20 @@
                 }
 
                 const result = await response.json();
+                console.log('API Response:', result);
                 
-                // Parse Gradio response format
-                // result.data[0] contains the label predictions
+                // Gradio returns: {data: [{label: "...", confidences: [{label: "...", confidence: 0.xx}, ...]}]}
                 const predictions = result.data[0];
                 
-                // Find healthy and diseased probabilities
+                // Extract probabilities from confidences array
                 let healthyProb = 0;
                 let diseasedProb = 0;
                 
-                if (predictions.label) {
-                    // Format: [{label: "Healthy", probability: 0.95}, ...]
-                    for (const pred of predictions.label) {
-                        if (pred.label === "Healthy") healthyProb = pred.probability;
-                        if (pred.label === "Diseased") diseasedProb = pred.probability;
+                if (predictions.confidences) {
+                    for (const conf of predictions.confidences) {
+                        if (conf.label === "Healthy") healthyProb = conf.confidence;
+                        if (conf.label === "Diseased") diseasedProb = conf.confidence;
                     }
-                } else {
-                    // Format: {"Healthy": 0.95, "Diseased": 0.05}
-                    healthyProb = predictions.Healthy || predictions.healthy || 0;
-                    diseasedProb = predictions.Diseased || predictions.diseased || 0;
                 }
                 
                 const prediction = {
@@ -285,7 +292,7 @@
                 
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error analyzing image: ' + error.message + '\n\nMake sure your Hugging Face Space is running.');
+                alert('Error analyzing image: ' + error.message + '\n\nMake sure your Hugging Face Space is running at:\nhttps://huggingface.co/spaces/aevhencn/yachiyo');
                 resetScan();
             }
         }
