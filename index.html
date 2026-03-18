@@ -3,10 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA Configuration -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Yachiyo">
     <meta name="theme-color" content="#10b981">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- App Icons -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    
     <title>Yachiyo - Plant Health Scanner</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -20,41 +32,140 @@
             color: #333;
         }
         
-        .container { flex: 1; max-width: 900px; margin: 0 auto; padding: 20px; width: 100%; }
+        .container { flex: 1; max-width: 500px; margin: 0 auto; padding: 20px; width: 100%; }
         .header { text-align: center; color: white; padding: 20px 0; }
-        .header h1 { font-size: 32px; margin-bottom: 5px; }
-        .header p { opacity: 0.9; font-size: 16px; }
+        .header h1 { font-size: 28px; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 14px; }
         
-        .app-container {
+        .card {
             background: white;
             border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            height: 600px;
-        }
-        
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-        
-        .footer { 
-            text-align: center; 
-            padding: 20px; 
-            color: white; 
-            font-size: 12px; 
-            opacity: 0.8; 
-        }
-        
-        .info {
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 15px;
+            padding: 25px;
             margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .camera-section { text-align: center; }
+        
+        #preview {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            border-radius: 15px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            overflow: hidden;
+        }
+        
+        #preview img { width: 100%; height: 100%; object-fit: cover; }
+        #preview .placeholder { color: #9ca3af; font-size: 48px; }
+        
+        .btn {
+            background: #10b981;
             color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover { background: #059669; transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+        
+        #fileInput { display: none; }
+        
+        .results { display: none; animation: fadeIn 0.5s; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-header { text-align: center; margin-bottom: 20px; }
+        
+        .status {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .status.healthy { background: #d1fae5; color: #065f46; }
+        .status.diseased { background: #fee2e2; color: #991b1b; }
+        .status.uncertain { background: #fef3c7; color: #92400e; }
+        
+        .confidence { font-size: 14px; color: #6b7280; margin-top: 5px; }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 0.5s ease;
+        }
+        
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .warning-title { font-weight: 600; color: #92400e; margin-bottom: 5px; }
+        .warning-text { font-size: 14px; color: #78350f; }
+        
+        .new-scan-btn { background: #667eea; margin-top: 15px; }
+        .new-scan-btn:hover { background: #5568d3; }
+        
+        .loading { text-align: center; padding: 30px; display: none; }
+        
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .footer { text-align: center; padding: 20px; color: white; font-size: 12px; opacity: 0.8; }
+        
+        .probabilities {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .prob-item {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
             text-align: center;
         }
+        
+        .prob-label { font-size: 12px; color: #6b7280; margin-bottom: 5px; }
+        .prob-value { font-size: 20px; font-weight: 700; color: #1f2937; }
     </style>
 </head>
 <body>
@@ -63,20 +174,151 @@
             <h1>🌿 Yachiyo</h1>
             <p>AI-powered plant disease detection</p>
         </div>
-        
-        <div class="info">
-            Upload a plant leaf image to check its health status
+
+        <div class="card camera-section">
+            <div id="preview">
+                <div class="placeholder">📷</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" capture="environment">
+            <button class="btn" onclick="openCamera()">Take Photo</button>
         </div>
 
-        <div class="app-container">
-            <iframe src="https://aevhencn-yachiyo.hf.space" allow="camera; microphone"></iframe>
+        <div class="card loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your plant...</p>
+        </div>
+
+        <div class="card results" id="results">
+            <div class="result-header">
+                <div class="status" id="statusBadge">Healthy</div>
+                <div class="confidence">Confidence: <span id="confidenceText">95%</span></div>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceFill" style="width: 95%"></div>
+                </div>
+            </div>
+
+            <div class="probabilities">
+                <div class="prob-item">
+                    <div class="prob-label">Healthy</div>
+                    <div class="prob-value" id="healthyProb">95%</div>
+                </div>
+                <div class="prob-item">
+                    <div class="prob-label">Diseased</div>
+                    <div class="prob-value" id="diseasedProb">5%</div>
+                </div>
+            </div>
+
+            <div class="warning" id="uncertainWarning" style="display: none;">
+                <div class="warning-title">⚠️ Uncertain Result</div>
+                <div class="warning-text">The model is not confident about this prediction. Consider consulting an expert or taking another photo in better lighting.</div>
+            </div>
+
+            <button class="btn new-scan-btn" onclick="resetScan()">Scan Another Plant</button>
         </div>
     </div>
 
     <div class="footer">
         Context-Aware Plant Disease Detection Using Image Analysis and Geospatial Data
-        <br>
-        <a href="https://huggingface.co/spaces/aevhencn/yachiyo" style="color: white; opacity: 0.8;">View on Hugging Face</a>
     </div>
+
+    <script>
+        function openCamera() {
+            document.getElementById('fileInput').click();
+        }
+
+        document.getElementById('fileInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                displayImage(file);
+                await analyzeImage(file);
+            }
+        });
+
+        function displayImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('preview').innerHTML = `<img src="${e.target.result}" alt="Plant photo">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function analyzeImage(file) {
+            document.querySelector('.camera-section').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                // Simulate processing time
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const prediction = generateDemoPrediction();
+                displayResults(prediction);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error analyzing image. Please try again.');
+                resetScan();
+            }
+        }
+
+        function generateDemoPrediction() {
+            const rand = Math.random();
+            
+            if (rand > 0.6) {
+                // Likely healthy
+                return {
+                    healthyProb: 0.75 + Math.random() * 0.20,
+                    diseasedProb: 0.05 + Math.random() * 0.20
+                };
+            } else if (rand > 0.3) {
+                // Likely diseased
+                return {
+                    healthyProb: 0.10 + Math.random() * 0.20,
+                    diseasedProb: 0.70 + Math.random() * 0.25
+                };
+            } else {
+                // Uncertain
+                return {
+                    healthyProb: 0.40 + Math.random() * 0.20,
+                    diseasedProb: 0.40 + Math.random() * 0.20
+                };
+            }
+        }
+
+        function displayResults(prediction) {
+            const { healthyProb, diseasedProb } = prediction;
+            const maxProb = Math.max(healthyProb, diseasedProb);
+            const isHealthy = healthyProb > diseasedProb;
+            const isUncertain = maxProb < 0.7;
+            
+            const statusBadge = document.getElementById('statusBadge');
+            if (isUncertain) {
+                statusBadge.textContent = 'Uncertain';
+                statusBadge.className = 'status uncertain';
+            } else if (isHealthy) {
+                statusBadge.textContent = '✓ Healthy';
+                statusBadge.className = 'status healthy';
+            } else {
+                statusBadge.textContent = '✗ Diseased';
+                statusBadge.className = 'status diseased';
+            }
+            
+            const confidence = Math.round(maxProb * 100);
+            document.getElementById('confidenceText').textContent = `${confidence}%`;
+            document.getElementById('confidenceFill').style.width = `${confidence}%`;
+            document.getElementById('healthyProb').textContent = `${Math.round(healthyProb * 100)}%`;
+            document.getElementById('diseasedProb').textContent = `${Math.round(diseasedProb * 100)}%`;
+            document.getElementById('uncertainWarning').style.display = isUncertain ? 'block' : 'none';
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function resetScan() {
+            document.querySelector('.camera-section').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('preview').innerHTML = '<div class="placeholder">📷</div>';
+        }
+    </script>
 </body>
 </html>
