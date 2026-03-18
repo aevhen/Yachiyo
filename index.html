@@ -7,6 +7,12 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#10b981">
+    
+    <!-- PWA Manifest and Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    
     <title>Yachiyo - Plant Health Scanner</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -67,12 +73,10 @@
         <div class="info">
             Upload a plant leaf image to check its health status
         </div>
-
         <div class="app-container">
             <iframe src="https://aevhencn-yachiyo.hf.space" allow="camera; microphone"></iframe>
         </div>
     </div>
-
     <div class="footer">
         Context-Aware Plant Disease Detection Using Image Analysis and Geospatial Data
         <br>
